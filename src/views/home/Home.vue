@@ -5,67 +5,21 @@
                 购物街
             </div>
         </nav-bar>
-        <home-swiper v-bind:banners="banners"></home-swiper>
-        <recommend-view v-bind:recommends="recommends"></recommend-view>
-        <feature-view></feature-view>
-        <tab-control class="tab-control" :titles="titles"></tab-control>
-        <goods-list :goods="goods['pop'].list"></goods-list>
-        <ul>
-            <li>列表1</li>
-            <li>列表2</li>
-            <li>列表3</li>
-            <li>列表4</li>
-            <li>列表5</li>
-            <li>列表6</li>
-            <li>列表7</li>
-            <li>列表8</li>
-            <li>列表9</li>
-            <li>列表10</li>
-            <li>列表11</li>
-            <li>列表12</li>
-            <li>列表13</li>
-            <li>列表14</li>
-            <li>列表15</li>
-            <li>列表16</li>
-            <li>列表17</li>
-            <li>列表18</li>
-            <li>列表19</li>
-            <li>列表20</li>
-            <li>列表21</li>
-            <li>列表22</li>
-            <li>列表23</li>
-            <li>列表24</li>
-            <li>列表25</li>
-            <li>列表26</li>
-            <li>列表27</li>
-            <li>列表28</li>
-            <li>列表29</li>
-            <li>列表30</li>
-            <li>列表31</li>
-            <li>列表32</li>
-            <li>列表33</li>
-            <li>列表34</li>
-            <li>列表35</li>
-            <li>列表36</li>
-            <li>列表37</li>
-            <li>列表38</li>
-            <li>列表39</li>
-            <li>列表40</li>
-            <li>列表41</li>
-            <li>列表42</li>
-            <li>列表43</li>
-            <li>列表44</li>
-            <li>列表45</li>
-            <li>列表46</li>
-            <li>列表47</li>
-            <li>列表48</li>
-            <li>列表49</li>
-            <li>列表50</li>
-        </ul>
+        <scroll class="content" ref="scroll" v-bind:probe-type="3" @scroll="centerScroll">
+            <home-swiper v-bind:banners="banners"></home-swiper>
+            <recommend-view v-bind:recommends="recommends"></recommend-view>
+            <feature-view></feature-view>
+            <tab-control class="tab-control" :titles="titles" @tabClick="tabClick"></tab-control>
+            <goods-list :goods="showGoods"></goods-list>
+        </scroll>
+        <!-- native可以监听某个组件发生的事件 -->
+        <!-- 注意：当我们需监听一个组件，必须给组件添加.native修饰符才能进行监听 -->
+        <back-top @click.native="backClick" v-show="isShowBackTo"></back-top>
     </div>
 </template>
 
 <script>
+
 // home组件
 // 轮播图
 import HomeSwiper from "./childComps/HomeSwiper"
@@ -81,6 +35,10 @@ import NavBar from "@/components/common/navbar/NavBar"
 import TabControl from "@/components/content/tabControl/TabControl"
 // 请求商品
 import GoodsList from "@/components/content/goods/GoodsList"
+// 封装better-scroll
+import Scroll from "@/components/common/scroll/Scroll"
+// BackTop的封装
+import BackTop from "@/components/content/backTop/BackTop"
 
 // 发送网络请求
 import {getHomeMultidata,getHomeGoods} from "@/network/home.js"
@@ -95,7 +53,9 @@ export default {
         // 公共组件注册
         NavBar,
         TabControl,
-        GoodsList
+        GoodsList,
+        Scroll,
+        BackTop
     },
     data(){
         return {
@@ -106,7 +66,14 @@ export default {
                 'new':{page:0,list:[]},
                 'sell':{page:0,list:[]}
             },
-            titles:["流行","新款","精选"]
+            currentType:"pop",
+            titles:["流行","新款","精选"],
+            isShowBackTo:false,//控制backTo的现实与隐藏
+        }
+    },
+    computed:{
+        showGoods(){
+            return this.goods[this.currentType].list;
         }
     },
     created(){//created函数中最好是只写调用方法，执行的函数放到methods中去
@@ -118,6 +85,27 @@ export default {
         this.getHomeGoods("sell");
     },
     methods:{
+        // 事件监听相关方法
+        tabClick(index){
+            switch(index){
+                case 0:this.currentType = "pop";
+                break;
+                case 1:this.currentType = "new";
+                break;
+                case 2:this.currentType = "sell";
+                break;
+            }
+        },
+        backClick(){
+            // scrollTo(x距离，y距离，时间以ms为单位)
+            this.$refs.scroll.scrollTo(0,0,500);
+        },
+        centerScroll(position){
+            // 通过记录判断是否显示与隐藏
+            this.isShowBackTo = (-position.y) > 1000
+        },
+
+        // 网络请求相关方法
         getHomeMultidata(){
             getHomeMultidata().then(res => {
                 this.banners = res.data.banner.list;
@@ -127,7 +115,6 @@ export default {
         getHomeGoods(type){
             const page = this.goods[type].page + 1;
             getHomeGoods(type,page).then(res => {
-                console.log(res);
                 this.goods[type].list.push(...res.data.list);
                 this.goods[type].page += 1;
             })
@@ -138,10 +125,11 @@ export default {
 
 <style scoped>
     #home{
-        /* position: relative;
-        height: 100vh; */
+        position: relative;
+        height: 100vh;
+        /* vh指视口： 100vh值100%视口 */
         box-sizing: border-box;
-        /* overflow: hidden; */
+        overflow: hidden;
         padding-top: 44px;
     }
     .home-nav{
@@ -154,19 +142,18 @@ export default {
         z-index: 9;
     }
     .tab-control{
-        position: sticky;
         top: 44px;
         z-index: 9;
     }
-    /* .content{
+    .content{
         overflow: hidden;
         position: absolute;
         top: 44px;
         left: 0;
         right: 0;
-        bottom: 49px;
+        bottom: 49px; 
     }
-    .tabControle1{
+    /*.tabControle1{
         position: relative;
         background: #fff;
         z-index: 999;
