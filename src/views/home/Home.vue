@@ -5,11 +5,12 @@
                 购物街
             </div>
         </nav-bar>
-        <scroll class="content" ref="scroll" v-bind:probe-type="3" @scroll="centerScroll">
-            <home-swiper v-bind:banners="banners"></home-swiper>
+        <tab-control :titles="titles" @tabClick="tabClick" ref="tabControl1" class="tab-control" v-show="isTabFixed"></tab-control>
+        <scroll class="content" ref="scroll" v-bind:probe-type="3" @scroll="centerScroll" :pull-up-load="true" @pullingUp="loadmore">
+            <home-swiper v-bind:banners="banners" @swiperImageLoad="swiperImageLoad"></home-swiper>
             <recommend-view v-bind:recommends="recommends"></recommend-view>
             <feature-view></feature-view>
-            <tab-control class="tab-control" :titles="titles" @tabClick="tabClick"></tab-control>
+            <tab-control :titles="titles" @tabClick="tabClick" ref="tabControl2"></tab-control>
             <goods-list :goods="showGoods"></goods-list>
         </scroll>
         <!-- native可以监听某个组件发生的事件 -->
@@ -43,6 +44,9 @@ import BackTop from "@/components/content/backTop/BackTop"
 // 发送网络请求
 import {getHomeMultidata,getHomeGoods} from "@/network/home.js"
 
+// 工具类
+import {debounce} from "@/commen/utils.js"
+
 export default {
     name: "Home",
     components:{
@@ -69,12 +73,22 @@ export default {
             currentType:"pop",
             titles:["流行","新款","精选"],
             isShowBackTo:false,//控制backTo的现实与隐藏
+            tabOffsetTop:0,
+            isTabFixed:false,//默认情况不需要吸顶
+            saveY:0
         }
     },
     computed:{
         showGoods(){
             return this.goods[this.currentType].list;
         }
+    },
+    activated(){
+        this.$refs.scroll.scrollTo(0,this.saveY,0);
+        this.$refs.scroll.refresh();
+    },
+    deactivated(){
+        this.saveY = this.$refs.scroll.getScrollY();
     },
     created(){//created函数中最好是只写调用方法，执行的函数放到methods中去
         // 请求多个数据
@@ -83,6 +97,13 @@ export default {
         this.getHomeGoods("pop");
         this.getHomeGoods("new");
         this.getHomeGoods("sell");
+    },
+    mounted(){
+        // 监听item中图片加载完成
+        const refresh = debounce(this.$refs.scroll.refresh,300)
+        this.$bus.$on('homeImageLoad',() => {
+            refresh();
+        });
     },
     methods:{
         // 事件监听相关方法
@@ -95,14 +116,27 @@ export default {
                 case 2:this.currentType = "sell";
                 break;
             }
+            this.$refs.tabControl1.currentIndex = index;
+            this.$refs.tabControl2.currentIndex = index;
         },
         backClick(){
             // scrollTo(x距离，y距离，时间以ms为单位)
             this.$refs.scroll.scrollTo(0,0,500);
         },
         centerScroll(position){
-            // 通过记录判断是否显示与隐藏
-            this.isShowBackTo = (-position.y) > 1000
+            // 通过记录判断BackTop是否显示与隐藏
+            this.isShowBackTo = (-position.y) > 1000;
+            // 决定tabControl是否吸顶
+            this.isTabFixed = (-position.y) > this.tabOffsetTop;
+        },
+        // 上拉加载更多事件
+        loadmore(){
+            this.getHomeGoods(this.currentType);
+        },
+        swiperImageLoad(){
+            // 获取tabControl的offsetTop属性
+            // 所有的组件都有$el：用于获取组件中的元素
+            this.tabOffsetTop = this.$refs.tabControl2.$el.offsetTop;
         },
 
         // 网络请求相关方法
@@ -117,6 +151,8 @@ export default {
             getHomeGoods(type,page).then(res => {
                 this.goods[type].list.push(...res.data.list);
                 this.goods[type].page += 1;
+                // 完成上拉加载更多
+                this.$refs.scroll.finishPullUp();
             })
         }
     }
@@ -130,20 +166,10 @@ export default {
         /* vh指视口： 100vh值100%视口 */
         box-sizing: border-box;
         overflow: hidden;
-        padding-top: 44px;
     }
     .home-nav{
         background-color: var(--color-tint);
         color: #fff;
-        position: fixed;
-        left: 0;
-        right: 0;
-        top: 0;
-        z-index: 9;
-    }
-    .tab-control{
-        top: 44px;
-        z-index: 9;
     }
     .content{
         overflow: hidden;
@@ -153,9 +179,9 @@ export default {
         right: 0;
         bottom: 49px; 
     }
-    /*.tabControle1{
+    .tab-control{
         position: relative;
         background: #fff;
         z-index: 999;
-    } */
+    }
 </style>
