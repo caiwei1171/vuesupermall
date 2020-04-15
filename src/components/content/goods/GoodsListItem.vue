@@ -34,7 +34,15 @@ export default {
         },
         // 获取商品详情页
         itemClick(){
-            this.$router.push('/detail/' + this.goodsItem.iid)
+            // 动态路由的形式
+            // this.$router.push('/detail/' + this.goodsItem.iid);
+            // 通过query的形式传递参数  注意：通过此方式需将路由中的地址:iid去掉
+            this.$router.push({
+                path:"/detail",
+                query:{
+                    iid:this.goodsItem.iid
+                }
+            });
         }
     }
 }
