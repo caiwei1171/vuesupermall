@@ -31,6 +31,7 @@ export default {
         // 导航栏点击变色
         titleClick(index){
             this.currentIndex = index;
+            this.$emit("titleClick",index)
         },
         // 返回
         backClick(){

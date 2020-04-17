@@ -1,13 +1,14 @@
 <template>
     <div id="detail">
-        <detail-nav-bar class="detail-nav"></detail-nav-bar>
-        <scroll class="content" ref="scroll">
+        <detail-nav-bar class="detail-nav" @titleClick="titleClick" ref="nav"></detail-nav-bar>
+        <scroll class="content" ref="scroll" @scroll="contentScroll" :probeType="3">
             <detail-swiper :top-images="topImages"></detail-swiper>
             <detail-base-info :goods="goods"></detail-base-info>
             <detail-shop-info :shop="shop"></detail-shop-info>
             <detail-goods-info :detailInfo="detailInfo" @imageLoad="imageLoad"></detail-goods-info>
-            <detail-param-info :paramInfo="paramInfo"></detail-param-info>
-            <detail-comment-info :commentInfo="commentInfo"></detail-comment-info>
+            <detail-param-info :paramInfo="paramInfo" ref="params"></detail-param-info>
+            <detail-comment-info :commentInfo="commentInfo" ref="comment"></detail-comment-info>
+            <goods-list :goods="recommends" ref="recommend"></goods-list>
         </scroll>
     </div>
 </template>
@@ -23,10 +24,14 @@ import DetailParamInfo from "./childComps/DetailParamInfo"
 import DetailCommentInfo from "./childComps/DetailCommentInfo"
 // 封装better-scroll
 import Scroll from "@/components/common/scroll/Scroll"
+import GoodsList from "@/components/content/goods/GoodsList"
 // 获取详情数据
-import {getDetail,Goods,Shop,GoodsParam} from "@/network/detail.js"
+import {getDetail,Goods,Shop,GoodsParam,getRecommend} from "@/network/detail.js"
+import {debounce} from '@/commen/utils.js'
+import {itemListenerMixin} from '@/commen/mixin.js'
 export default {
     name:"Detail",
+    mixins:[itemListenerMixin],
     data(){
         return {
             iid:null,
@@ -35,7 +40,11 @@ export default {
             shop:{},
             detailInfo:{},
             paramInfo:{},
-            commentInfo:{}
+            commentInfo:{},
+            recommends:[],
+            themeTopYs:[],
+            getThemeTopy:null,
+            currentIndex:0
         }
     },
     components:{
@@ -46,13 +55,14 @@ export default {
         DetailGoodsInfo,
         DetailParamInfo,
         DetailCommentInfo,
+        GoodsList,
         Scroll
     },
     created(){
         // 1.保存传入的id
         // this.iid = this.$route.params.iid;//动态路由的形式
         this.iid = this.$route.query.iid;
-        // 根据iid请求详情数据
+        // 2.根据iid请求详情数据
         getDetail(this.iid).then((res) => {
             // 1.获取顶部图片轮播图数据
             const data = res.result;
@@ -69,11 +79,68 @@ export default {
             if(data.rate.cRate !== 0){
                 this.commentInfo = data.rate.list[0];
             }
+            // this.$nextTick(() => {//等前面元素渲染完成后在执行里面的回调函数
+                // 此时，dom元素已被渲染但图片依然是没加载完
+                // this.themeTopYs = [];
+                // this.themeTopYs.push(0);
+                // this.themeTopYs.push(this.$refs.params.$el.offsetTop);
+                // this.themeTopYs.push(this.$refs.comment.$el.offsetTop);
+                // this.themeTopYs.push(this.$refs.recommend.$el.offsetTop);
+            // })
         });
+        // 3.请求推荐数据
+        getRecommend().then((res) => {
+            this.recommends = res.data.list;
+        }),
+        // 4.给getThemeTopy赋值
+        this.getThemeTopy = debounce(() => {
+            this.themeTopYs = [];
+            this.themeTopYs.push(0);
+            this.themeTopYs.push(this.$refs.params.$el.offsetTop);
+            this.themeTopYs.push(this.$refs.comment.$el.offsetTop);
+            this.themeTopYs.push(this.$refs.recommend.$el.offsetTop);
+            this.themeTopYs.push(Number.MAX_VALUE);
+        },100)
+    },
+    mounted(){
+        // const refresh = debounce(this.$refs.scroll.refresh,50);
+        // this.itemImgListener = () => {
+        //     this.$refs.scroll.refresh();
+        //     refresh()
+        // }
+        // this.$bus.$on('detailImageLoad',this.itemImgListener);
+    },
+    updated(){
+        // this.themeTopYs = [];
+        // this.themeTopYs.push(0);
+        // this.themeTopYs.push(this.$refs.params.$el.offsetTop);
+        // this.themeTopYs.push(this.$refs.comment.$el.offsetTop);
+        // this.themeTopYs.push(this.$refs.recommend.$el.offsetTop - 45);
+        // this.themeTopYs.push(Number.MAX_VALUE);
+    },
+    destroyed(){
+        this.$bus.$off('detailImageLoad',this.itemImgListener);
     },
     methods:{
         imageLoad(){
             this.$refs.scroll.refresh();
+            this.getThemeTopy();
+        },
+        titleClick(index){
+            this.$refs.scroll.scrollTo(0,-this.themeTopYs[index],100);
+        },
+        // 实现移动图片顶部导航也变化
+        contentScroll(position){
+            // 1.获取y值
+            const positionY = -position.y;
+            // 2.positionY和getThemeTopy值进行对比
+            let length = this.themeTopYs.length;
+            for(let i = 0;i < length - 1;i++){
+                if(this.currentIndex !== i && (i < length - 1 && positionY >= this.themeTopYs[i] && positionY < this.themeTopYs[i + 1])){
+                    this.currentIndex = i;
+                    this.$refs.nav.currentIndex = this.currentIndex;
+                }
+            }
         }
     }
 }

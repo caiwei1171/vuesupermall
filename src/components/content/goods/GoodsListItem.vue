@@ -2,7 +2,7 @@
     <div class="goods-list-item" @click="itemClick">
         <!-- 原生js监听图片 img.onLoad = function(){} -->
         <!-- Vue中监听：@load="方法" -->
-        <img :src="goodsItem.show.img" alt="" @load="imageLoad">
+        <img :src="showImage" alt="" @load="imageLoad">
         <div class="goods-info">
             <p>{{goodsItem.title}}</p>
             <span class="price">{{goodsItem.price}}</span>
@@ -22,15 +22,20 @@ export default {
             }
         }
     },
+    computed:{
+        showImage(){
+            return this.goodsItem.image || this.goodsItem.show.img;
+        }
+    },
     methods:{
         imageLoad(){
-            // if(this.$route.path.includes('/home')){
+            if(this.$route.path.includes('/home')){
                 this.$bus.$emit('homeImageLoad');
-            // }else if(this.$route.path.includes('/detail')){
-            //     this.$bus.$emit('detailImageLoad')
-            // }else{
-            //     this.$bus.$emit('categoryImageLoad');
-            // }
+            }else if(this.$route.path.includes('/detail')){
+                this.$bus.$emit('detailImageLoad')
+            }else{
+                this.$bus.$emit('categoryImageLoad');
+            }
         },
         // 获取商品详情页
         itemClick(){

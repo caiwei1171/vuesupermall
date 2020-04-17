@@ -100,6 +100,7 @@ export default {
     },
     mounted(){
         // 监听item中图片加载完成
+        // const refresh = debounce(this.$refs.scroll.refresh,50)
         const refresh = debounce(this.$refs.scroll.refresh,300)
         this.$bus.$on('homeImageLoad',() => {
             refresh();
