@@ -38,17 +38,17 @@ import TabControl from "@/components/content/tabControl/TabControl"
 import GoodsList from "@/components/content/goods/GoodsList"
 // 封装better-scroll
 import Scroll from "@/components/common/scroll/Scroll"
-// BackTop的封装
-import BackTop from "@/components/content/backTop/BackTop"
 
 // 发送网络请求
 import {getHomeMultidata,getHomeGoods} from "@/network/home.js"
 
 // 工具类
 import {debounce} from "@/commen/utils.js"
+import {backTopMixin} from '@/commen/mixin.js'
 
 export default {
     name: "Home",
+    mixins:[backTopMixin],
     components:{
         // home组件注册
         HomeSwiper,
@@ -59,7 +59,6 @@ export default {
         TabControl,
         GoodsList,
         Scroll,
-        BackTop
     },
     data(){
         return {
@@ -72,7 +71,6 @@ export default {
             },
             currentType:"pop",
             titles:["流行","新款","精选"],
-            isShowBackTo:false,//控制backTo的现实与隐藏
             tabOffsetTop:0,
             isTabFixed:false,//默认情况不需要吸顶
             saveY:0
@@ -120,13 +118,9 @@ export default {
             this.$refs.tabControl1.currentIndex = index;
             this.$refs.tabControl2.currentIndex = index;
         },
-        backClick(){
-            // scrollTo(x距离，y距离，时间以ms为单位)
-            this.$refs.scroll.scrollTo(0,0,500);
-        },
         centerScroll(position){
             // 通过记录判断BackTop是否显示与隐藏
-            this.isShowBackTo = (-position.y) > 1000;
+            this.listenShowBackTop(position);
             // 决定tabControl是否吸顶
             this.isTabFixed = (-position.y) > this.tabOffsetTop;
         },

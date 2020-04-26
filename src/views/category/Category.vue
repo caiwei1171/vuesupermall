@@ -1,70 +1,140 @@
 <template>
-    <div class="wrapper" ref="aaaa">
-        <!-- <h2>分类</h2> -->
-        <ul class="content">
-            <li>列表1</li>
-            <li>列表2</li>
-            <li>列表3</li>
-            <li>列表4</li>
-            <li>列表5</li>
-            <li>列表6</li>
-            <li>列表7</li>
-            <li>列表8</li>
-            <li>列表9</li>
-            <li>列表10</li>
-            <li>列表11</li>
-            <li>列表12</li>
-            <li>列表13</li>
-            <li>列表14</li>
-            <li>列表15</li>
-            <li>列表16</li>
-            <li>列表17</li>
-            <li>列表18</li>
-            <li>列表19</li>
-            <li>列表20</li>
-            <li>列表21</li>
-            <li>列表22</li>
-            <li>列表23</li>
-            <li>列表24</li>
-            <li>列表25</li>
-            <li>列表26</li>
-            <li>列表27</li>
-            <li>列表28</li>
-            <li>列表29</li>
-            <li>列表30</li>
-        </ul>
+    <div class='category-wrapper'>
+        <nav-bar class="category-nav">
+            <div slot="center">商品分类</div>
+        </nav-bar>
+        <div class="menu-container">
+            <tab-menu :list="categories" @menuclick="menuclick" class="menu"/>
+            <scroll class="tab-content" ref="scroll">
+                <tab-content :subData="getSubcategories" :currentIndex="currentIndex"/>
+                <tab-control :titles="['综合','新品','销量']" @tabClick="tabClick"/>
+                <goods-list :goods="CategoryGoods" />
+            </scroll>
+        </div>
     </div>
 </template>
 
 <script>
-// import BScroll from "better-scroll"
+import NavBar from '@/components/common/navbar/NavBar'
+import Scroll from '@/components/common/scroll/Scroll'
+import TabControl from '@/components/content/tabControl/TabControl'
+import GoodsList from '@/components/content/goods/GoodsList'
+import {getCategory,getSubcategory,getCategoryDetail} from '@/network/category'
+import {debounce} from '@/commen/utils'
+
+import TabMenu from './childComps/TabMenu'
+import TabContent from './childComps/TabContent'
 export default {
-    name: "Category",
+    name:'Category',
+    components:{
+        NavBar,
+        Scroll,
+        TabControl,
+        TabMenu,
+        TabContent,
+        GoodsList
+    },
     data(){
         return {
-            scroll:null
+            categories:[],
+            categoryData:{},
+            currentIndex:-1,
+            tabIndex:0,
+            currentType:"pop"
         }
     },
-    // mounted(){
-    //     this.scroll = new BScroll(document.querySelector(".wrapper"),{
-    //         probeType:3,
-    //         pullUpLoad:true
-    //     })
-    //     this.scroll.on("scroll",(position) => {
-    //         console.log(position)
-    //     });
-    //     this.scroll.on("pullingUp",() => {
-    //         console.log("上拉加载更多")
-    //     });
-    // }
+    computed:{
+        getSubcategories(){
+            if(this.currentIndex === -1) return []
+            return this.categoryData[this.currentIndex].subcategories.list
+        },
+        CategoryGoods(){
+            if(this.currentIndex === -1) return []
+            return this.categoryData[this.currentIndex].categoryDetail[this.currentType]
+        }
+    },
+    created(){
+        getCategory().then(res => {
+            // 1.获取分类数据
+            this.categories = res.data.category.list;
+            // 2.初始化每个类别的子数据
+            for(let i in this.categories){
+                this.categoryData[i] = {
+                    subcategories:{},
+                    categoryDetail:{
+                        'pop':[],
+                        'new':[],
+                        'sell':[]
+                    }
+                }
+            }
+            // 3.请求第一个分类数据
+            this._getSubcategory(0);
+            this._getCategoryDetail(0,'pop');
+            this._getCategoryDetail(0,'new');
+            this._getCategoryDetail(0,'sell');
+        })
+    },
+    mounted() {
+        let newRefresh = debounce(this.$refs.scroll.refresh)
+        this.$bus.$on("categoryImageLoad",() => {
+            newRefresh();
+        })
+    },
+    methods:{
+        menuclick(index){
+            this._getSubcategory(index)
+            this._getCategoryDetail(index,'pop')
+            this._getCategoryDetail(index,'new')
+            this._getCategoryDetail(index,'sell')
+        },
+        tabClick(index){
+            switch(index){
+                case 0: this.currentType = "pop"
+                break;
+                case 1: this.currentType = "new"
+                break;
+                case 2: this.currentType = "sell"
+                break;
+            }
+        },
+        _getSubcategory(index){
+            this.currentIndex = index;
+            let maitKey = this.categories[index].maitKey
+            getSubcategory(maitKey).then(res => {
+                this.categoryData[index].subcategories = res.data
+                this.categoryData = {...this.categoryData}
+            }) 
+        },
+        _getCategoryDetail(index,type){
+            let miniWallkey = this.categories[index].miniWallkey
+            getCategoryDetail(miniWallkey,type).then(res => {
+                this.categoryData[index].categoryDetail[type] = res;
+            })
+        }
+    }
 }
 </script>
-
 <style scoped>
-    .wrapper{
-        height: 150px;
-        background-color: red;
-        /* overflow-y: scroll; */
-        overflow: hidden; 
+    .category-wrapper{
+        font-size: 14px;
+        color: #666;
+    }
+    .category-nav{
+        background-color: var(--color-tint);
+        color: #fff;
+        font-weight: 700;
+        z-index: 9;
+    }
+    .menu-container{
+        display: flex;
+    }
+    .menu-container .menu{
+        width: 100px;
+    }
+    .tab-content{
+        height: calc(100vh - 44px - 49px);
+        flex: 1;
+        overflow: hidden;
     }
 </style>

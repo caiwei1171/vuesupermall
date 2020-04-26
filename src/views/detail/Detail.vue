@@ -10,6 +10,8 @@
             <detail-comment-info :commentInfo="commentInfo" ref="comment"></detail-comment-info>
             <goods-list :goods="recommends" ref="recommend"></goods-list>
         </scroll>
+        <detail-bottom-bar @addCart="addToCart"></detail-bottom-bar>
+        <back-top @click.native="backClick" v-show="isShowBackTo"></back-top>
     </div>
 </template>
 
@@ -22,16 +24,20 @@ import DetailShopInfo from "./childComps/DetailShopInfo"
 import DetailGoodsInfo from "./childComps/DetailGoodsInfo"
 import DetailParamInfo from "./childComps/DetailParamInfo"
 import DetailCommentInfo from "./childComps/DetailCommentInfo"
+import DetailBottomBar from "./childComps/DetailBottomBar"
 // 封装better-scroll
 import Scroll from "@/components/common/scroll/Scroll"
 import GoodsList from "@/components/content/goods/GoodsList"
+
 // 获取详情数据
 import {getDetail,Goods,Shop,GoodsParam,getRecommend} from "@/network/detail.js"
 import {debounce} from '@/commen/utils.js'
-import {itemListenerMixin} from '@/commen/mixin.js'
+import {itemListenerMixin,backTopMixin} from '@/commen/mixin.js'
+// 调用vuex中的方法
+import {mapActions} from 'vuex'
 export default {
     name:"Detail",
-    mixins:[itemListenerMixin],
+    mixins:[itemListenerMixin,backTopMixin],
     data(){
         return {
             iid:null,
@@ -55,6 +61,7 @@ export default {
         DetailGoodsInfo,
         DetailParamInfo,
         DetailCommentInfo,
+        DetailBottomBar,
         GoodsList,
         Scroll
     },
@@ -122,6 +129,7 @@ export default {
         this.$bus.$off('detailImageLoad',this.itemImgListener);
     },
     methods:{
+        ...mapActions(['addCart']),
         imageLoad(){
             this.$refs.scroll.refresh();
             this.getThemeTopy();
@@ -141,6 +149,25 @@ export default {
                     this.$refs.nav.currentIndex = this.currentIndex;
                 }
             }
+            // 3.是否现实回到顶部
+            this.listenShowBackTop(position);
+        },
+        addToCart(){
+            // 1.获取购物车需要展示的商品信息
+            const product = {};
+            product.image = this.topImages[0];
+            product.title = this.goods.title;
+            product.desc = this.goods.desc;
+            product.newPrice = this.goods.realPrice;
+            product.iid = this.iid;
+            // 2.将商品添加到购物车
+            // this.$store.dispatch("addCart",product);
+            this.addCart(product).then(res => {
+                this.$toast.show(res);
+            })
+            // this.$store.dispatch("addCart",product).then(res => {
+            //     console.log(res)
+            // })
         }
     }
 }
@@ -152,6 +179,9 @@ export default {
         z-index: 9;
         background-color: #fff;
         height: 100vh;
+        top: 0;
+        right: 0;
+        left: 0;
     }
     .detail-nav{
         position: relative;

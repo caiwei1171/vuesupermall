@@ -2,7 +2,8 @@
     <div class="goods-list-item" @click="itemClick">
         <!-- 原生js监听图片 img.onLoad = function(){} -->
         <!-- Vue中监听：@load="方法" -->
-        <img :src="showImage" alt="" @load="imageLoad">
+        <!-- <img :src="showImage" alt="" @load="imageLoad"> -->
+        <img v-lazy="showImage" alt="" @load="imageLoad">
         <div class="goods-info">
             <p>{{goodsItem.title}}</p>
             <span class="price">{{goodsItem.price}}</span>
@@ -24,7 +25,7 @@ export default {
     },
     computed:{
         showImage(){
-            return this.goodsItem.image || this.goodsItem.show.img;
+            return this.goodsItem.image || this.goodsItem.img || this.goodsItem.show.img;
         }
     },
     methods:{
